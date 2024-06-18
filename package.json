@@ -4,7 +4,8 @@
   "description": "Demo application showing how to automate selling crypto on Paxful",
   "main": "index.js",
   "scripts": {
-    "start":"nodemon app.js"
+    "start":"app.js",
+    "dev":"nodemon app.js"
   },
   "license": "ISC",
   "dependencies": {
