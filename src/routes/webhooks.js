@@ -10,14 +10,36 @@ const handlers = {
     },
     'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
         const offerOwnerUsername = ctx.config.username;
+        const maxRetries = 5;
+        let retries = 0;
+        let messages;
 
-        // We're reacting only to messages that are sent by buyer (i.e. offer taker)
-        const allMessages = (await paxfulApi.invoke('/paxful/v1/trade-chat/get', {
-            trade_hash: payload.trade_hash
-        })).data.messages;
-        const nonSystemMessages = allMessages.filter(m => 'msg' === m.type).reverse();
-        const lastNonSystemMessage = nonSystemMessages.slice()[0];
+        while (retries < maxRetries) {
+            try {
+                const response = await paxfulApi.invoke('/paxful/v1/trade-chat/get', { trade_hash: payload.trade_hash });
+                messages = response.data.messages;
+
+                if (messages) {
+                    break;
+                }
+
+                retries++;
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second before retrying
+            } catch (error) {
+                console.error('Error fetching trade chat messages:', error);
+                throw error;
+            }
+        }
+
+        if (!messages) {
+            console.warn('Messages are not available after multiple retries.');
+            return;
+        }
+
+        const nonSystemMessages = messages.filter(m => m.type === 'msg').reverse();
+        const lastNonSystemMessage = nonSystemMessages[0];
         const isLastMessageByBuyer = lastNonSystemMessage.author !== offerOwnerUsername;
+
         if (!isLastMessageByBuyer) {
             return;
         }
@@ -37,21 +59,14 @@ const handlers = {
 };
 
 const validateFiatPaymentConfirmationRequestSignature = async (req) => {
-    // TODO
-    // In a real production application you would need to implement this method to
-    // verify a request indeed came from a bank. That will help to avoid situations
-    // when a someone may get to know what URL your application has for accepting
-    // confirmations from bank and then by issuing requests to this endpoint will
-    // pretend being a bank (which will result in releasing crypto without you
-    // receiving a fiat payment first)
+    // TODO: Implement request signature validation to verify the request authenticity.
     return true;
-}
+};
 
 // This method is to be called by a bank when a fiat transaction has been received
-router.post('/bank/transaction-arrived', async(req, res) => {
+router.post('/bank/transaction-arrived', async (req, res) => {
     if (!(await validateFiatPaymentConfirmationRequestSignature(req))) {
-        res.status(400);
-        res.json({
+        res.status(400).json({
             status: 'error',
             errors: ['Request authenticity (signature) validation failed.']
         });
@@ -60,9 +75,8 @@ router.post('/bank/transaction-arrived', async(req, res) => {
 
     const payload = req.body;
 
-    if (!payload['reference'] || !payload['amount'] || !payload['currency']) {
-        res.status(400);
-        res.json({
+    if (!payload.reference || !payload.amount || !payload.currency) {
+        res.status(400).json({
             status: 'error',
             errors: ['"reference", "amount" or "currency" were not provided.']
         });
@@ -70,10 +84,9 @@ router.post('/bank/transaction-arrived', async(req, res) => {
     }
 
     if (payload.balance < 0) {
-        res.status(400);
-        res.json({
+        res.status(400).json({
             status: 'error',
-            errors: ['"amount" cannot be negative ']
+            errors: ['"amount" cannot be negative']
         });
         return;
     }
@@ -82,16 +95,14 @@ router.post('/bank/transaction-arrived', async(req, res) => {
     const tradeHash = await tradesHandler.findTradeHashByPaymentReference(payload.reference);
     if (tradeHash) {
         if (await tradesHandler.isCryptoReleased(tradeHash)) {
-            res.status(400);
-            res.json({
+            res.status(400).json({
                 status: 'error',
-                errors: [`Crypto for a given trade has already been released.`]
+                errors: ['Crypto for a given trade has already been released.']
             });
         } else {
             const tradeData = await tradesHandler.getFiatBalanceAndCurrency(tradeHash);
             if (tradeData.currency.toLowerCase() !== payload.currency.toLowerCase()) {
-                res.status(400);
-                res.json({
+                res.status(400).json({
                     status: 'error',
                     errors: [`Expected fiat currency is ${tradeData.currency.toLowerCase()}, instead given ${payload.currency.toLowerCase()}`]
                 });
@@ -102,7 +113,6 @@ router.post('/bank/transaction-arrived', async(req, res) => {
             await tradesHandler.updateBalance(tradeHash, tradeData.balance.plus(new Big(payload.amount)));
             if (await tradesHandler.isFiatPaymentReceivedInFullAmount(tradeHash)) {
                 await tradesHandler.markCompleted(tradeHash);
-
                 res.json({ status: 'success' });
             } else {
                 res.json({
@@ -114,8 +124,7 @@ router.post('/bank/transaction-arrived', async(req, res) => {
             }
         }
     } else {
-        res.status(404);
-        res.json({
+        res.status(404).json({
             status: 'error',
             errors: [`Unable to find a trade where sender account's prefix is ${payload.sender_account_number}`]
         });
@@ -123,50 +132,43 @@ router.post('/bank/transaction-arrived', async(req, res) => {
 });
 
 router.post('/paxful/webhook', async (req, res) => {
-    res.set("X-Paxful-Request-Challenge", req.headers['x-paxful-request-challenge'])
+    res.set("X-Paxful-Request-Challenge", req.headers['x-paxful-request-challenge']);
 
     const isValidationRequest = req.body.type === undefined;
     if (isValidationRequest) {
         console.debug("Validation request arrived");
-
-        res.json({"status": "ok"});
-        return
+        res.json({ status: "ok" });
+        return;
     }
 
     const signature = req.get('x-paxful-signature');
     if (!signature) {
         console.warn("No signature");
-
-        res.json({"status": "error", "message": "No signature header"});
-        res.status(403);
+        res.status(403).json({ status: "error", message: "No signature header" });
         return;
     }
 
     if (!isValidSignature(signature, req.get('host'), req.originalUrl, req.rawBody)) {
         console.warn("Invalid signature");
-
-        res.json({"status": "error", "message": "Invalid signature"});
-        res.status(403);
+        res.status(403).json({ status: "error", message: "Invalid signature" });
         return;
     }
 
-    console.debug("\n---------------------")
-    console.debug("New incoming webhook:")
-    console.debug(req.body)
-    console.debug("---------------------")
+    console.debug("\n---------------------");
+    console.debug("New incoming webhook:");
+    console.debug(req.body);
+    console.debug("---------------------");
 
     const type = req.body.type;
     if (handlers[type]) {
         try {
             const paxfulApi = req.context.services.paxfulApi;
-
             const tradesHandler = new TradesHandler(paxfulApi);
             await handlers[type](req.body.payload, tradesHandler, paxfulApi, req.context);
-        } catch(e) {
+        } catch (e) {
             console.error(`Error when handling '${type}' webhook:`, e);
         }
     }
-
 });
 
 module.exports = router;
