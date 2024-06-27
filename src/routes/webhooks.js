@@ -4,6 +4,8 @@ const { isValidSignature } = require('../webhooks');
 const { TradesHandler } = require('../trading');
 const Big = require('big.js');
 
+
+
 const handlers = {
     'trade.started': async (payload, tradesHandler) => {
         await tradesHandler.markAsStarted(payload.trade_hash);
@@ -17,9 +19,9 @@ const handlers = {
         while (retries < maxRetries) {
             try {
                 const response = await paxfulApi.invoke('/paxful/v1/trade-chat/get', { trade_hash: payload.trade_hash });
-                messages = response.data.messages;
 
-                if (messages) {
+                if (response && response.data && response.data.messages) {
+                    messages = response.data.messages;
                     break;
                 }
 
