@@ -32,6 +32,8 @@ app.use(function(req, res, next) {
 
     next();
 });
+
+
 app.use(express.json());
 app.use('/', require('./src/routes'));
 app.listen(port, async () => {

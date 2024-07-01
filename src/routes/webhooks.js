@@ -4,10 +4,11 @@ const { isValidSignature } = require('../webhooks');
 const { TradesHandler } = require('../trading');
 const Big = require('big.js');
 
+const tradesChatMessages = {}; // In-memory store for trade chat messages
+const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
 
 
 const handlers = {
-
 
     'trade.started': async (payload, tradesHandler) => {
         await tradesHandler.markAsStarted(payload.trade_hash);
@@ -41,6 +42,10 @@ const handlers = {
             return;
         }
 
+        // Store messages in the in-memory store
+        tradesChatMessages[payload.trade_hash] = messages;
+        tradeHashQueue.push(payload.trade_hash); // Add trade hash to the queue
+
         const nonSystemMessages = messages.filter(m => m.type === 'msg').reverse();
         const lastNonSystemMessage = nonSystemMessages[0];
         const isLastMessageByBuyer = lastNonSystemMessage.author !== offerOwnerUsername;
@@ -49,10 +54,11 @@ const handlers = {
             return;
         }
 
-        await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
-            trade_hash: payload.trade_hash,
-            message: 'This is a fully automate trade, no human is monitoring chat. Please do not expect a reply.'
-        });
+        // Automated response can be commented out or removed based on requirements
+        // await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+        //     trade_hash: payload.trade_hash,
+        //     message: 'This is a fully automated trade, no human is monitoring chat. Please do not expect a reply.'
+        // });
     },
 
     'trade.paid': async (payload, tradesHandler) => {
@@ -68,6 +74,52 @@ const validateFiatPaymentConfirmationRequestSignature = async (req) => {
     // TODO: Implement request signature validation to verify the request authenticity.
     return true;
 };
+
+
+
+//Get Trades in Queue
+
+router.get('/paxful/trade-chats', async (req, res) => {
+    const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
+
+    if (!tradeHash || !tradesChatMessages[tradeHash]) {
+        res.status(404).json({ status: 'error', message: 'No messages found for the oldest trade.' });
+        return;
+    }
+
+    res.json({ status: 'success', messages: tradesChatMessages[tradeHash] });
+});
+
+
+
+//Data Range
+
+router.post('/paxful/send-message', async (req, res) => {
+    const message = req.body.message;
+    const paxfulApi = req.context.services.paxfulApi;
+    const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
+
+    if (!tradeHash || !message) {
+        res.status(400).json({ status: 'error', message: 'Both trade hash and message are required.' });
+        return;
+    }
+
+    try {
+        await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+            trade_hash: tradeHash,
+            message
+        });
+
+        // Remove the processed trade hash from the queue
+        tradeHashQueue.shift();
+
+        res.json({ status: 'success', message: 'Message sent successfully.' });
+    } catch (error) {
+        console.error('Error sending chat message:', error);
+        res.status(500).json({ status: 'error', message: 'Failed to send message.' });
+    }
+});
+
 
 // This method is to be called by a bank when a fiat transaction has been received
 
@@ -137,6 +189,9 @@ router.post('/bank/transaction-arrived', async (req, res) => {
         });
     }
 });
+
+
+//Verifications
 
 router.post('/paxful/webhook', async (req, res) => {
     res.set("X-Paxful-Request-Challenge", req.headers['x-paxful-request-challenge']);
