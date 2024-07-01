@@ -4,6 +4,7 @@ const Big = require('big.js');
 const sleep = require('sleep-promise');
 
 class TradesHandler {
+    
     constructor(paxfulApi) {
         this.storageFilename = __dirname + '/../storage/trades.json';
 

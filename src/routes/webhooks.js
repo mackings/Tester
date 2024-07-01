@@ -61,6 +61,28 @@ const handlers = {
         // });
     },
 
+    'trade.bank_account_shared': async (payload, tradesHandler) => {
+        // Handle the bank account shared event
+        const tradeHash = payload.trade_hash;
+        console.log(`Bank account shared for trade: ${tradeHash}`);
+        // Add your logic here, e.g., save the bank account details to the trade
+        const trade = await tradesHandler.getTrade(tradeHash);
+        trade.bankAccountShared = true;
+        await tradesHandler.updateTrade(tradeHash, () => trade);
+    },
+
+    // New event handler for 'trade.bank_account_selected'
+    'trade.bank_account_selected': async (payload, tradesHandler) => {
+        // Handle the bank account selected event
+        const tradeHash = payload.trade_hash;
+        console.log(`Bank account selected for trade: ${tradeHash}`);
+        const selectedBankAccount = payload.selected_bank_account;
+        const trade = await tradesHandler.getTrade(tradeHash);
+        trade.selectedBankAccount = selectedBankAccount;
+        await tradesHandler.updateTrade(tradeHash, () => trade);
+    },
+
+
     'trade.paid': async (payload, tradesHandler) => {
         const tradeHash = payload.trade_hash;
 
@@ -69,12 +91,6 @@ const handlers = {
         }
     },
 };
-
-const validateFiatPaymentConfirmationRequestSignature = async (req) => {
-    // TODO: Implement request signature validation to verify the request authenticity.
-    return true;
-};
-
 
 
 //Get Trades in Queue
@@ -90,9 +106,6 @@ router.get('/paxful/trade-chats', async (req, res) => {
     res.json({ status: 'success', messages: tradesChatMessages[tradeHash] });
 });
 
-
-
-//Data Range
 
 router.post('/paxful/send-message', async (req, res) => {
     const message = req.body.message;
@@ -119,6 +132,12 @@ router.post('/paxful/send-message', async (req, res) => {
         res.status(500).json({ status: 'error', message: 'Failed to send message.' });
     }
 });
+
+
+const validateFiatPaymentConfirmationRequestSignature = async (req) => {
+    // TODO: Implement request signature validation to verify the request authenticity.
+    return true;
+};
 
 
 // This method is to be called by a bank when a fiat transaction has been received
