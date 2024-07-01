@@ -7,9 +7,12 @@ const Big = require('big.js');
 
 
 const handlers = {
+
+
     'trade.started': async (payload, tradesHandler) => {
         await tradesHandler.markAsStarted(payload.trade_hash);
     },
+
     'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
         const offerOwnerUsername = ctx.config.username;
         const maxRetries = 5;
@@ -51,6 +54,7 @@ const handlers = {
             message: 'This is a fully automate trade, no human is monitoring chat. Please do not expect a reply.'
         });
     },
+
     'trade.paid': async (payload, tradesHandler) => {
         const tradeHash = payload.trade_hash;
 
@@ -66,6 +70,7 @@ const validateFiatPaymentConfirmationRequestSignature = async (req) => {
 };
 
 // This method is to be called by a bank when a fiat transaction has been received
+
 router.post('/bank/transaction-arrived', async (req, res) => {
     if (!(await validateFiatPaymentConfirmationRequestSignature(req))) {
         res.status(400).json({
