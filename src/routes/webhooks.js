@@ -14,40 +14,49 @@ const handlers = {
         await tradesHandler.markAsStarted(payload.trade_hash);
     },
 
-    'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
-        const offerOwnerUsername = ctx.config.username;
-        const maxRetries = 5;
-        let retries = 0;
-        let messages;
+'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
+    const offerOwnerUsername = ctx.config.username;
+    const maxRetries = 5;
+    let retries = 0;
+    let messages;
 
-        while (retries < maxRetries) {
-            try {
-                const response = await paxfulApi.invoke('/paxful/v1/trade-chat/get', { trade_hash: payload.trade_hash });
+    while (retries < maxRetries) {
+        try {
+            const response = await paxfulApi.invoke('/paxful/v1/trade-chat/get', { trade_hash: payload.trade_hash });
 
-                if (response && response.data && response.data.messages) {
-                    messages = response.data.messages;
-                    break;
-                }
-
-                retries++;
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second before retrying
-            } catch (error) {
-                console.error('Error fetching trade chat messages:', error);
-                throw error;
+            if (response && response.data && response.data.messages) {
+                messages = response.data.messages;
+                break;
             }
+
+            retries++;
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second before retrying
+        } catch (error) {
+            console.error('Error fetching trade chat messages:', error);
+            throw error;
         }
+    }
 
-        if (!messages) {
-            console.warn('Messages are not available after multiple retries.');
-            return;
-        }
+    if (!messages) {
+        console.warn('Messages are not available after multiple retries.');
+        return;
+    }
 
-        // Store messages in the in-memory store
-        tradesChatMessages[payload.trade_hash] = messages;
-        tradeHashQueue.push(payload.trade_hash); // Add trade hash to the queue
+    // Store messages in the in-memory store
+    tradesChatMessages[payload.trade_hash] = messages;
+    tradeHashQueue.push(payload.trade_hash); // Add trade hash to the queue
 
-        const nonSystemMessages = messages.filter(m => m.type === 'msg').reverse();
-        const lastNonSystemMessage = nonSystemMessages[0];
+    const nonSystemMessages = messages.filter(m => m.type === 'msg' || m.type === 'bank-account-instruction').reverse();
+    const lastNonSystemMessage = nonSystemMessages[0];
+
+    // Process bank account instruction messages differently
+    if (lastNonSystemMessage.type === 'bank-account-instruction') {
+        const bankAccountDetails = lastNonSystemMessage.text.bank_account;
+        console.log('Received bank account details:', bankAccountDetails);
+
+        // You can process the bank account details here
+        // For example, save them to a trade record or log them for further analysis
+    } else {
         const isLastMessageByBuyer = lastNonSystemMessage.author !== offerOwnerUsername;
 
         if (!isLastMessageByBuyer) {
@@ -59,7 +68,9 @@ const handlers = {
         //     trade_hash: payload.trade_hash,
         //     message: 'This is a fully automated trade, no human is monitoring chat. Please do not expect a reply.'
         // });
-    },
+    }
+},
+
 
     'trade.bank_account_shared': async (payload, tradesHandler) => {
         // Handle the bank account shared event
