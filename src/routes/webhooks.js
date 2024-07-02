@@ -12,6 +12,11 @@ const handlers = {
 
     'trade.started': async (payload, tradesHandler) => {
         await tradesHandler.markAsStarted(payload.trade_hash);
+
+        await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+            trade_hash: payload.trade_hash,
+            message: 'Good Day Chief, Nice having a trade with you boss..'
+        });
     },
 
 'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
