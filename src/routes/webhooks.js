@@ -64,10 +64,10 @@ const handlers = {
         }
 
         // Automated response can be commented out or removed based on requirements
-        // await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
-        //     trade_hash: payload.trade_hash,
-        //     message: 'This is a fully automated trade, no human is monitoring chat. Please do not expect a reply.'
-        // });
+        await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+            trade_hash: payload.trade_hash,
+            message: 'Good Day Chief, Nice having a trade with you boss..'
+        });
     }
 },
 
