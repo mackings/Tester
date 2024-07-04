@@ -15,7 +15,7 @@ const handlers = {
 
         await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
             trade_hash: payload.trade_hash,
-            message: 'Good Day Chief, Nice having a trade with you boss..'
+            message: 'Hello Boss, please drop me your Account.'
         });
     },
 
@@ -61,6 +61,7 @@ const handlers = {
 
         // You can process the bank account details here
         // For example, save them to a trade record or log them for further analysis
+        
     } else {
         const isLastMessageByBuyer = lastNonSystemMessage.author !== offerOwnerUsername;
 
@@ -69,10 +70,10 @@ const handlers = {
         }
 
         // Automated response can be commented out or removed based on requirements
-        await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
-            trade_hash: payload.trade_hash,
-            message: 'Good Day Chief, Nice having a trade with you boss..'
-        });
+        // await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+        //     trade_hash: payload.trade_hash,
+        //     message: 'Good Day Chief, Nice having a trade with you boss..'
+        // });
     }
 },
 
