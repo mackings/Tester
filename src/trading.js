@@ -48,7 +48,8 @@ class TradesHandler {
             await sleep(2000);
             await this.paxfulApi.invoke('/paxful/v1/trade-chat/post', {
                 trade_hash: tradeHash,
-                message: `When making a payment please specify the following payment reference: ${paymentReference}`
+                //When making a payment please specify the following payment reference: ${paymentReference}
+                message: ``
             });
         } else {
             throw new Error('You can mark a trade as started only once.');
