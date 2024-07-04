@@ -106,6 +106,7 @@ router.get('/paxful/trade-chats', async (req, res) => {
 });
 
 
+
 router.post('/paxful/send-message', async (req, res) => {
     const message = req.body.message;
     const paxfulApi = req.context.services.paxfulApi;

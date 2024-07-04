@@ -32,10 +32,12 @@ class TradesHandler {
                 expectedPaymentReference: this.generatePaymentReference(data)
             });
 
+//This is a fully automated trade. Please follow instructions that will follow.
+
             await sleep(2000);
             await this.paxfulApi.invoke('/paxful/v1/trade-chat/post', {
                 trade_hash: tradeHash,
-                message: `This is a fully automated trade. Please follow instructions that will follow.`
+                message: ``
             });
 
             await sleep(2000);
