@@ -10,44 +10,48 @@ const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
 
 const handlers = {
 
-    // 'trade.started': async (payload, tradesHandler) => {
-    //     await tradesHandler.markAsStarted(payload.trade_hash);
+    'trade.started': async (payload, tradesHandler) => {
+        await tradesHandler.markAsStarted(payload.trade_hash);
 
-    //     await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
-    //         trade_hash: payload.trade_hash,
-    //         message: 'Hello Boss, please drop me your Account.'
-    //     });
-    // },
-
-    'trade.started': async (payload, _, paxfulApi, ctx) => {
-    const offerOwnerUsername = ctx.config.username;
-
-    try {
-        // Log or handle the trade started event
-        console.log(`Trade started with trade hash: ${payload.trade_hash}`);
-
-        // Fetch initial trade details (optional, can be used for further processing)
         const response = await paxfulApi.invoke('/paxful/v1/trade/get', { trade_hash: payload.trade_hash });
+        console.log(response);
 
-        if (response && response.data && response.data.trade) {
-            const tradeDetails = response.data.trade;
-            console.log('Trade details:', tradeDetails);
+        await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+            trade_hash: payload.trade_hash,
+            message: 'Hello Boss, please drop me your Account.'
+        });
+    },
 
-            // Send an automated message to the trade chat
-            await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
-                trade_hash: payload.trade_hash,
-                message: 'Good Day Chief, Please drop acccount'
-            });
 
-        } else {
-            console.warn('No trade details available for trade hash:', payload.trade_hash);
-            console.log('No trade details available for trade hash:', payload.trade_hash);
-        }
-    } catch (error) {
-        console.error('Error handling trade started event:', error);
-        throw error;
-    }
-},
+// 'trade.started': async (payload, _, paxfulApi, ctx) => {
+//     const offerOwnerUsername = ctx.config.username;
+
+//     try {
+//         // Log or handle the trade started event
+//         console.log(`Trade started with trade hash: ${payload.trade_hash}`);
+
+//         // Fetch initial trade details (optional, can be used for further processing)
+//         const response = await paxfulApi.invoke('/paxful/v1/trade/get', { trade_hash: payload.trade_hash });
+
+//         if (response && response.data && response.data.trade) {
+//             const tradeDetails = response.data.trade;
+//             console.log('Trade details:', tradeDetails);
+
+//             // Send an automated message to the trade chat
+//             await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+//                 trade_hash: payload.trade_hash,
+//                 message: 'Good Day Chief, Please drop acccount'
+//             });
+
+//         } else {
+//             console.warn('No trade details available for trade hash:', payload.trade_hash);
+//             console.log('No trade details available for trade hash:', payload.trade_hash);
+//         }
+//     } catch (error) {
+//         console.error('Error handling trade started event:', error);
+//         throw error;
+//     }
+// },
 
 
 
@@ -108,28 +112,6 @@ const handlers = {
         // });
     }
 },
-
-
-    'trade.bank_account_shared': async (payload, tradesHandler) => {
-        // Handle the bank account shared event
-        const tradeHash = payload.trade_hash;
-        console.log(`Bank account shared for trade: ${tradeHash}`);
-        // Add your logic here, e.g., save the bank account details to the trade
-        const trade = await tradesHandler.getTrade(tradeHash);
-        trade.bankAccountShared = true;
-        await tradesHandler.updateTrade(tradeHash, () => trade);
-    },
-
-
-    'trade.bank_account_selected': async (payload, tradesHandler) => {
-        // Handle the bank account selected event
-        const tradeHash = payload.trade_hash;
-        console.log(`Bank account selected for trade: ${tradeHash}`);
-        const selectedBankAccount = payload.selected_bank_account;
-        const trade = await tradesHandler.getTrade(tradeHash);
-        trade.selectedBankAccount = selectedBankAccount;
-        await tradesHandler.updateTrade(tradeHash, () => trade);
-    },
 
 
     'trade.paid': async (payload, tradesHandler) => {
