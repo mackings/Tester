@@ -46,11 +46,11 @@ class TradesHandler {
             });
 
             await sleep(2000);
-            await this.paxfulApi.invoke('/paxful/v1/trade-chat/post', {
-                trade_hash: tradeHash,
-                //When making a payment please specify the following payment reference: ${paymentReference}
-                message: ``
-            });
+            // await this.paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+            //     trade_hash: tradeHash,
+            //     //When making a payment please specify the following payment reference: ${paymentReference}
+            //     message: ``
+            // });
         } else {
             throw new Error('You can mark a trade as started only once.');
         }
@@ -78,14 +78,14 @@ class TradesHandler {
         })
     }
 
-    async markCompleted(tradeHash) {
-        await this.releaseCrypto(tradeHash);
-        await this.paxfulApi.invoke('/paxful/v1/feedback/give', {
-            trade_hash: tradeHash,
-            message: 'Good business partner!',
-            rating: 1
-        });
-    }
+    // async markCompleted(tradeHash) {
+    //     await this.releaseCrypto(tradeHash);
+    //     await this.paxfulApi.invoke('/paxful/v1/feedback/give', {
+    //         trade_hash: tradeHash,
+    //         message: 'Good business partner!',
+    //         rating: 1
+    //     });
+    // }
 
     async isFiatPaymentReceivedInFullAmount(tradeHash) {
         const trade = await this.getFiatBalanceAndCurrency(tradeHash);
@@ -107,18 +107,20 @@ class TradesHandler {
         return foundTradeHash;
     }
 
-    async releaseCrypto(tradeHash) {
-        if (!(await this.isFiatPaymentReceivedInFullAmount(tradeHash))) {
-            throw new Error('You cannot release crypto for a trade which has not received a bank payment yet.');
-        }
+    // async releaseCrypto(tradeHash) {
+    //     if (!(await this.isFiatPaymentReceivedInFullAmount(tradeHash))) {
+    //         throw new Error('You cannot release crypto for a trade which has not received a bank payment yet.');
+    //     }
 
-        await this.updateTrade(tradeHash, async (trade) => {
-            await this.paxfulApi.invoke('/paxful/v1/trade/release', { trade_hash: tradeHash });
-            trade.isCryptoReleased = true;
+    //     await this.updateTrade(tradeHash, async (trade) => {
+    //         await this.paxfulApi.invoke('/paxful/v1/trade/release', { trade_hash: tradeHash });
+    //         trade.isCryptoReleased = true;
 
-            return trade;
-        })
-    }
+    //         return trade;
+    //     })
+    // }
+
+
 
     // Here we're relying on storing data in a JSON file. For a production use please re-implement to use
     // database
@@ -149,36 +151,36 @@ class TradesHandler {
     }
 
     // private
-    async updateTrade(tradeHash, operation) {
-        try {
-            await lockfile.lock(this.storageFilename);
-            const trades = await this.getTrades();
+    // async updateTrade(tradeHash, operation) {
+    //     try {
+    //         await lockfile.lock(this.storageFilename);
+    //         const trades = await this.getTrades();
 
-            if (!trades[tradeHash]) {
-                throw new Error(`No trade found with trade hash - '${tradeHash}'.`);
-            }
-            const trade = trades[tradeHash];
+    //         if (!trades[tradeHash]) {
+    //             throw new Error(`No trade found with trade hash - '${tradeHash}'.`);
+    //         }
+    //         const trade = trades[tradeHash];
 
-            const updatedTrade = await operation(trade);
-            if (!updatedTrade) {
-                throw new Error('Updated trade cannot be empty.');
-            }
-            trades[tradeHash] = updatedTrade;
+    //         const updatedTrade = await operation(trade);
+    //         if (!updatedTrade) {
+    //             throw new Error('Updated trade cannot be empty.');
+    //         }
+    //         trades[tradeHash] = updatedTrade;
 
-            await fs.writeFile(this.storageFilename, JSON.stringify(trades, null, 2));
-        } finally {
-            await lockfile.unlock(this.storageFilename);
-        }
-    } 
+    //         await fs.writeFile(this.storageFilename, JSON.stringify(trades, null, 2));
+    //     } finally {
+    //         await lockfile.unlock(this.storageFilename);
+    //     }
+    // } 
 
     // private
-    async saveTrade(id, trade) {
-        await lockfile.lock(this.storageFilename);
-        const trades = await this.getTrades();
-        trades[id] = trade;
-        await fs.writeFile(this.storageFilename, JSON.stringify(trades, null, 2));
-        await lockfile.unlock(this.storageFilename);
-    }
+    // async saveTrade(id, trade) {
+    //     await lockfile.lock(this.storageFilename);
+    //     const trades = await this.getTrades();
+    //     trades[id] = trade;
+    //     await fs.writeFile(this.storageFilename, JSON.stringify(trades, null, 2));
+    //     await lockfile.unlock(this.storageFilename);
+    // }
 
     // </persistence>
 }
