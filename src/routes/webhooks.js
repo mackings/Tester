@@ -25,16 +25,16 @@ const broadcast = (message) => {
 
 const handlers = {
   'trade.started': async (payload, tradesHandler, paxfulApi) => {
+    console.log('Handler trade.started called with payload:', payload); // Logging
     await tradesHandler.markAsStarted(payload.trade_hash);
     const response = await paxfulApi.invoke('/paxful/v1/trade/get', { trade_hash: payload.trade_hash });
     console.log(response);
     console.log('Trade started Invocation');
     broadcast({ event: 'trade.started', data: payload });
-
-    console.log('WebSocket sent data:', JSON.stringify(message));
   },
 
   'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
+    console.log('Handler trade.chat_message_received called with payload:', payload); // Logging
     const offerOwnerUsername = ctx.config.username;
     const maxRetries = 5;
     let retries = 0;
@@ -81,6 +81,7 @@ const handlers = {
   },
 
   'trade.paid': async (payload, tradesHandler) => {
+    console.log('Handler trade.paid called with payload:', payload); // Logging
     const tradeHash = payload.trade_hash;
     if (await tradesHandler.isFiatPaymentReceivedInFullAmount(tradeHash)) {
       await tradesHandler.markCompleted(tradeHash);
@@ -90,6 +91,7 @@ const handlers = {
 };
 
 router.get('/paxful/trade-chats', async (req, res) => {
+  console.log('/paxful/trade-chats called'); // Logging
   const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
 
   if (!tradeHash || !tradesChatMessages[tradeHash]) {
@@ -101,6 +103,7 @@ router.get('/paxful/trade-chats', async (req, res) => {
 });
 
 router.post('/paxful/send-message', async (req, res) => {
+  console.log('/paxful/send-message called with body:', req.body); // Logging
   const message = req.body.message;
   const paxfulApi = req.context.services.paxfulApi;
   const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
@@ -131,6 +134,7 @@ const validateFiatPaymentConfirmationRequestSignature = async (req) => {
 };
 
 router.post('/bank/transaction-arrived', async (req, res) => {
+  console.log('/bank/transaction-arrived called with body:', req.body); // Logging
   if (!(await validateFiatPaymentConfirmationRequestSignature(req))) {
     res.status(400).json({
       status: 'error',
@@ -195,6 +199,7 @@ router.post('/bank/transaction-arrived', async (req, res) => {
 
 router.post('/paxful/webhook', async (req, res) => {
   res.set('X-Paxful-Request-Challenge', req.headers['x-paxful-request-challenge']);
+  console.log('Webhook received with headers:', req.headers); // Logging
 
   const isValidationRequest = req.body.type === undefined;
   if (isValidationRequest) {
@@ -226,10 +231,13 @@ router.post('/paxful/webhook', async (req, res) => {
     try {
       const paxfulApi = req.context.services.paxfulApi;
       const tradesHandler = new TradesHandler(paxfulApi);
+      console.log(`Handler for ${type} found, invoking...`); // Logging
       await handlers[type](req.body.payload, tradesHandler, paxfulApi, req.context);
     } catch (e) {
       console.error(`Error when handling '${type}' webhook:`, e);
     }
+  } else {
+    console.log(`No handler for event type: ${type}`); // Logging
   }
 });
 
