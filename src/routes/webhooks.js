@@ -30,6 +30,8 @@ const handlers = {
     console.log(response);
     console.log('Trade started Invocation');
     broadcast({ event: 'trade.started', data: payload });
+
+    console.log('WebSocket sent data:', JSON.stringify(message));
   },
 
   'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
