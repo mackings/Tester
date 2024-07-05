@@ -24,13 +24,13 @@ class TradesHandler {
             const data = (await this.paxfulApi.invoke('/paxful/v1/trade/get', { trade_hash: tradeHash })).data.trade;
 
             const paymentReference = this.generatePaymentReference(data);
-            await this.saveTrade(tradeHash, {
-                isCryptoReleased: false,
-                fiatBalance: 0,
-                expectedFiatAmount: new Big(data.fiat_amount_requested).toNumber(),
-                expectedFiatCurrency: data.fiat_currency_code,
-                expectedPaymentReference: this.generatePaymentReference(data)
-            });
+            // await this.saveTrade(tradeHash, {
+            //     isCryptoReleased: false,
+            //     fiatBalance: 0,
+            //     expectedFiatAmount: new Big(data.fiat_amount_requested).toNumber(),
+            //     expectedFiatCurrency: data.fiat_currency_code,
+            //     expectedPaymentReference: this.generatePaymentReference(data)
+            // });
 
 //This is a fully automated trade. Please follow instructions that will follow.
 
