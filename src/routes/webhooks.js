@@ -1,42 +1,23 @@
 const express = require('express');
-const router = express.Router();
+const http = require('http');
 const { isValidSignature } = require('../webhooks');
 const { TradesHandler } = require('../trading');
 const Big = require('big.js');
-const WebSocket = require('ws');
+const router = express.Router();
+const socketIo = require('socket.io');
 
-// Initialize WebSocket server
 const app = express();
-const server = require('http').createServer(app);
-const wss = new WebSocket.Server({ server });
+const server = http.createServer(app);
+const io = socketIo(server);
 
 const tradesChatMessages = {}; // In-memory store for trade chat messages
 const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
 
 // Broadcast a message to all connected WebSocket clients
 const broadcast = (message) => {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message));
-      console.log('WebSocket sent data:', JSON.stringify(message)); // Log the data being sent
-    }
-  });
+  io.sockets.emit('message', message);
+  console.log('WebSocket sent data:', JSON.stringify(message)); // Log the data being sent
 };
-
-// Log WebSocket server connection events
-wss.on('connection', (ws) => {
-  console.log('New WebSocket connection established');
-  ws.on('message', (message) => {
-    console.log('Received message from client:', message);
-  });
-  ws.on('close', () => {
-    console.log('WebSocket connection closed');
-  });
-  ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
-  });
-});
-
 
 
 const handlers = {
@@ -107,7 +88,7 @@ const handlers = {
 };
 
 router.get('/paxful/trade-chats', async (req, res) => {
-  console.log('/paxful/trade-chats called'); 
+  console.log('/paxful/trade-chats called'); // Logging
   const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
 
   if (!tradeHash || !tradesChatMessages[tradeHash]) {
@@ -145,6 +126,7 @@ router.post('/paxful/send-message', async (req, res) => {
 });
 
 const validateFiatPaymentConfirmationRequestSignature = async (req) => {
+  // TODO: Implement request signature validation to verify the request authenticity.
   return true;
 };
 
@@ -214,6 +196,7 @@ router.post('/bank/transaction-arrived', async (req, res) => {
 
 router.post('/paxful/webhook', async (req, res) => {
   res.set('X-Paxful-Request-Challenge', req.headers['x-paxful-request-challenge']);
+  console.log('Webhook received with headers:', req.headers); // Logging
 
   const isValidationRequest = req.body.type === undefined;
   if (isValidationRequest) {
@@ -248,16 +231,34 @@ router.post('/paxful/webhook', async (req, res) => {
       console.log(`Handler for ${type} found, invoking...`); // Logging
       await handlers[type](req.body.payload, tradesHandler, paxfulApi, req.context);
     } catch (e) {
-      console.error(`Error when handling '${type}' webhook:`, e);
+      console.error(`Error when handling '${type}' event`);
+      console.error(e);
+      res.status(500).json({ status: 'error', message: 'Internal server error' });
+      return;
     }
   } else {
-    console.log(`No handler for event type: ${type}`); // Logging
+    console.warn('Unhandled webhook event:', req.body.type);
+    res.status(204).json({ status: 'ignored', message: 'Unhandled event' });
+    return;
   }
+
+  res.status(200).json({ status: 'success' });
 });
 
-server.listen(3000, () => {
-  console.log('Socket Running on 3000');
+io.on('connection', (socket) => {
+  console.log('New WebSocket connection established'); // Logging
+
+  socket.on('disconnect', () => {
+    console.log('WebSocket disconnected'); // Logging
+  });
 });
+
+
+
+server.listen(3000, () => {
+  console.log('Socket port 3000');
+});
+
 
 module.exports = router;
 
