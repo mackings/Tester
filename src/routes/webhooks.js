@@ -23,6 +23,20 @@ const broadcast = (message) => {
   });
 };
 
+// Log WebSocket server connection events
+wss.on('connection', (ws) => {
+  console.log('New WebSocket connection established');
+  ws.on('message', (message) => {
+    console.log('Received message from client:', message);
+  });
+  ws.on('close', () => {
+    console.log('WebSocket connection closed');
+  });
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+});
+
 const handlers = {
   'trade.started': async (payload, tradesHandler, paxfulApi) => {
     console.log('Handler trade.started called with payload:', payload); // Logging
@@ -91,7 +105,7 @@ const handlers = {
 };
 
 router.get('/paxful/trade-chats', async (req, res) => {
-  console.log('/paxful/trade-chats called'); // Logging
+  console.log('/paxful/trade-chats called'); 
   const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
 
   if (!tradeHash || !tradesChatMessages[tradeHash]) {
@@ -129,7 +143,6 @@ router.post('/paxful/send-message', async (req, res) => {
 });
 
 const validateFiatPaymentConfirmationRequestSignature = async (req) => {
-  // TODO: Implement request signature validation to verify the request authenticity.
   return true;
 };
 
@@ -199,7 +212,6 @@ router.post('/bank/transaction-arrived', async (req, res) => {
 
 router.post('/paxful/webhook', async (req, res) => {
   res.set('X-Paxful-Request-Challenge', req.headers['x-paxful-request-challenge']);
-  console.log('Webhook received with headers:', req.headers); // Logging
 
   const isValidationRequest = req.body.type === undefined;
   if (isValidationRequest) {
@@ -246,3 +258,4 @@ server.listen(3000, () => {
 });
 
 module.exports = router;
+
