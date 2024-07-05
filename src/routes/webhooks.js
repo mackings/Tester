@@ -18,6 +18,7 @@ const broadcast = (message) => {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(message));
+      console.log('WebSocket sent data:', JSON.stringify(message)); // Log the data being sent
     }
   });
 };
