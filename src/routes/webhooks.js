@@ -249,7 +249,7 @@ io.on('connection', (socket) => {
   console.log('New WebSocket connection established'); // Logging
 
   socket.on('disconnect', () => {
-    console.log('WebSocket disconnected'); // Logging
+    console.log('WebSocket disconnected'); // Loggings
   });
 });
 
