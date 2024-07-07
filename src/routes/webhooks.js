@@ -9,6 +9,7 @@ const socketIo = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
+const dotenv = require('dotenv').config();
 
 const tradesChatMessages = {}; // In-memory store for trade chat messages
 const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
@@ -255,7 +256,7 @@ io.on('connection', (socket) => {
 
 
 
-server.listen(3000, () => {
+server.listen(process.env.SPORT, () => {
   console.log('Socket port 3000');
 });
 
