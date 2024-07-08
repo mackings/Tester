@@ -19,7 +19,7 @@ const allowedOrigins = [
 
 const io = socketIo(server,{
   cors: {
-    origin: allowedOrigins, // Adjust this to match your Flutter app's URL if running locally
+    origin: allowedOrigins, 
     methods: ["GET", "POST"],
     //allowedHeaders: ["my-custom-header"],
     credentials: true
