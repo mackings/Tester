@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const dotenv = require('dotenv').config();
 const admin = require("firebase-admin");
-const serviceAccount = require('../../bkey.json');
+//const serviceAccount = require('../../bkey.json');
 
  const serviceAccount =  {
 
