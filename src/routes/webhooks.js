@@ -9,7 +9,14 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 const dotenv = require('dotenv').config();
+const admin = require("firebase-admin");
+const serviceAccount = require("../../bkey.json");
 
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const db = admin.firestore();
 
 const allowedOrigins = [
   'https://b-backend-xe8q.onrender.com', // Your backend URL
@@ -17,16 +24,13 @@ const allowedOrigins = [
   // Add any other origins where your Flutter app might be running
 ];
 
-const io = socketIo(server,{
+const io = socketIo(server, {
   cors: {
-    origin: allowedOrigins, 
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
-    //allowedHeaders: ["my-custom-header"],
     credentials: true
   }
-
 });
-
 
 const tradesChatMessages = {}; // In-memory store for trade chat messages
 const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
@@ -37,6 +41,15 @@ const broadcast = (message) => {
   console.log('WebSocket sent data:', JSON.stringify(message)); // Log the data being sent
 };
 
+const saveTradeToFirestore = async (payload, collection) => {
+  try {
+    const docRef = db.collection(collection).doc(payload.trade_hash);
+    await docRef.set(payload);
+    console.log(`Trade ${payload.trade_hash} saved to Firestore.`);
+  } catch (error) {
+    console.error('Error saving trade to Firestore:', error);
+  }
+};
 
 const handlers = {
   'trade.started': async (payload, tradesHandler, paxfulApi) => {
@@ -46,6 +59,7 @@ const handlers = {
     console.log(response);
     console.log('Trade started Invocation');
     broadcast({ event: 'trade.started', data: payload });
+    await saveTradeToFirestore(payload, 'trades');
   },
 
   'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
@@ -93,6 +107,7 @@ const handlers = {
       }
     }
     broadcast({ event: 'trade.chat_message_received', data: payload });
+    await saveTradeToFirestore(payload, 'tradeMessages');
   },
 
   'trade.paid': async (payload, tradesHandler) => {
@@ -101,116 +116,10 @@ const handlers = {
     if (await tradesHandler.isFiatPaymentReceivedInFullAmount(tradeHash)) {
       await tradesHandler.markCompleted(tradeHash);
       broadcast({ event: 'trade.paid', data: payload });
+      await saveTradeToFirestore(payload, 'trades');
     }
   },
 };
-
-router.get('/paxful/trade-chats', async (req, res) => {
-  console.log('/paxful/trade-chats called'); // Logging
-  const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
-
-  if (!tradeHash || !tradesChatMessages[tradeHash]) {
-    res.status(404).json({ status: 'error', message: 'No messages found for the oldest trade.' });
-    return;
-  }
-
-  res.json({ status: 'success', messages: tradesChatMessages[tradeHash] });
-});
-
-router.post('/paxful/send-message', async (req, res) => {
-  console.log('/paxful/send-message called with body:', req.body); // Logging
-  const message = req.body.message;
-  const paxfulApi = req.context.services.paxfulApi;
-  const tradeHash = tradeHashQueue.length > 0 ? tradeHashQueue[0] : null; // Get the oldest trade hash
-
-  if (!tradeHash || !message) {
-    res.status(400).json({ status: 'error', message: 'Both trade hash and message are required.' });
-    return;
-  }
-
-  try {
-    await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
-      trade_hash: tradeHash,
-      message,
-    });
-
-    // Remove the processed trade hash from the queue
-    tradeHashQueue.shift();
-    res.json({ status: 'success', message: 'Message sent successfully.' });
-  } catch (error) {
-    console.error('Error sending chat message:', error);
-    res.status(500).json({ status: 'error', message: 'Failed to send message.' });
-  }
-});
-
-const validateFiatPaymentConfirmationRequestSignature = async (req) => {
-  // TODO: Implement request signature validation to verify the request authenticity.
-  return true;
-};
-
-router.post('/bank/transaction-arrived', async (req, res) => {
-  console.log('/bank/transaction-arrived called with body:', req.body); // Logging
-  if (!(await validateFiatPaymentConfirmationRequestSignature(req))) {
-    res.status(400).json({
-      status: 'error',
-      errors: ['Request authenticity (signature) validation failed.'],
-    });
-    return;
-  }
-
-  const payload = req.body;
-  if (!payload.reference || !payload.amount || !payload.currency) {
-    res.status(400).json({
-      status: 'error',
-      errors: ['"reference", "amount" or "currency" were not provided.'],
-    });
-    return;
-  }
-
-  if (payload.balance < 0) {
-    res.status(400).json({
-      status: 'error',
-      errors: ['"amount" cannot be negative'],
-    });
-    return;
-  }
-
-  const tradesHandler = new TradesHandler(req.context.services.paxfulApi);
-  const tradeHash = await tradesHandler.findTradeHashByPaymentReference(payload.reference);
-  if (tradeHash) {
-    if (await tradesHandler.isCryptoReleased(tradeHash)) {
-      res.status(400).json({
-        status: 'error',
-        errors: ['Crypto for a given trade has already been released.'],
-      });
-    } else {
-      const tradeData = await tradesHandler.getFiatBalanceAndCurrency(tradeHash);
-      if (tradeData.currency.toLowerCase() !== payload.currency.toLowerCase()) {
-        res.status(400).json({
-          status: 'error',
-          errors: [`Expected fiat currency is ${tradeData.currency.toLowerCase()}, instead given ${payload.currency.toLowerCase()}`],
-        });
-        return;
-      }
-
-      await tradesHandler.updateBalance(tradeHash, tradeData.balance.plus(new Big(payload.amount)));
-      if (await tradesHandler.isFiatPaymentReceivedInFullAmount(tradeHash)) {
-        await tradesHandler.markCompleted(tradeHash);
-        res.json({ status: 'success' });
-      } else {
-        res.json({
-          status: 'success',
-          messages: [`Balance updated, but amount is still less than expected, thus not released a trade ${tradeHash}.`],
-        });
-      }
-    }
-  } else {
-    res.status(404).json({
-      status: 'error',
-      errors: [`Unable to find a trade where sender account's prefix is ${payload.sender_account_number}`],
-    });
-  }
-});
 
 router.post('/paxful/webhook', async (req, res) => {
   res.set('X-Paxful-Request-Challenge', req.headers['x-paxful-request-challenge']);
@@ -267,16 +176,12 @@ io.on('connection', (socket) => {
   console.log('New WebSocket connection established'); // Logging
 
   socket.on('disconnect', () => {
-    console.log('WebSocket disconnected'); // Loggings
+    console.log('WebSocket disconnected'); // Logging
   });
 });
-
-
 
 server.listen(process.env.SPORT, () => {
   console.log('Socket port 3000');
 });
 
-
 module.exports = router;
-
