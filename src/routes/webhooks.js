@@ -45,7 +45,7 @@ const saveTradeToFirestore = async (payload, collection) => {
   try {
     const docRef = db.collection(collection).doc(payload.trade_hash);
     await docRef.set(payload);
-    console.log(`Trade ${payload.trade_hash} saved to Firestore.`);
+    console.log(`Trade ${payload.trade_hash} saved to Firestore..`);
   } catch (error) {
     console.error('Error saving trade to Firestore:', error);
   }
