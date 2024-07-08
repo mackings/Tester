@@ -1,6 +1,7 @@
 const dotenv = require('dotenv');
 const express = require('express');
 const { createPaxfulApi } = require('./src/api');
+const cors = require('cors');
 
 dotenv.config();
 const port = 1000;
@@ -36,6 +37,7 @@ app.use(function(req, res, next) {
 
 app.use(express.json());
 app.use('/', require('./src/routes'));
+app.use(cors());
 app.listen(port, async () => {
     if (!username) {
         const response = await paxfulApi.invoke('/paxful/v1/user/me');

@@ -5,11 +5,27 @@ const { TradesHandler } = require('../trading');
 const Big = require('big.js');
 const router = express.Router();
 const socketIo = require('socket.io');
-
+const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
 const dotenv = require('dotenv').config();
+
+
+const io = socketIo(server,{
+  cors: {
+    origin: allowedOrigins, // Adjust this to match your Flutter app's URL if running locally
+    methods: ["GET", "POST"],
+    //allowedHeaders: ["my-custom-header"],
+    credentials: true
+  }
+
+});
+
+const allowedOrigins = [
+  'https://b-backend-xe8q.onrender.com', // Your backend URL
+  'http://localhost:3000', // If you're running your Flutter web app locally for development
+  // Add any other origins where your Flutter app might be running
+];
 
 const tradesChatMessages = {}; // In-memory store for trade chat messages
 const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
