@@ -161,6 +161,29 @@ const handlers = {
   },
 };
 
+//Send Chats
+
+router.post('/paxful/send-message', async (req, res) => {
+  const message = req.body.message;
+  const hash = request.body.hash;
+  const paxfulApi = req.context.services.paxfulApi;
+  try {
+      await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+          trade_hash: hash,
+          message
+      });
+      res.json({ status: 'success', message: 'Message sent successfully.' });
+  } catch (error) {
+      console.error('Error sending chat message:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to send message.' });
+  }
+});
+
+const validateFiatPaymentConfirmationRequestSignature = async (req) => {
+  // TODO: Implement request signature validation to verify the request authenticity.
+  return true;
+};
+
 router.post('/paxful/webhook', async (req, res) => {
   res.set('X-Paxful-Request-Challenge', req.headers['x-paxful-request-challenge']);
   console.log('Webhook received with headers:', req.headers); // Logging
