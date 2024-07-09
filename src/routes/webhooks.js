@@ -148,7 +148,7 @@ const handlers = {
     await saveChatMessageToFirestore(payload, messages);
   },
 
-  
+
 
   'trade.paid': async (payload, tradesHandler) => {
     console.log('Handler trade.paid called with payload:', payload); // Logging
