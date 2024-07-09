@@ -34,7 +34,6 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-console.log(serviceAccount)
 
 const allowedOrigins = [
   'https://b-backend-xe8q.onrender.com', // Your backend URL
@@ -49,6 +48,7 @@ const io = socketIo(server, {
     credentials: true
   }
 });
+
 
 const tradesChatMessages = {}; // In-memory store for trade chat messages
 const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
@@ -66,14 +66,30 @@ const saveTradeToFirestore = async (payload, collection) => {
       ...payload,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log(`Trade ${payload.trade_hash} saved to Firestore..`);
+    console.log(`Trade ${payload.trade_hash} saved to Firestore.`);
   } catch (error) {
     console.error('Error saving trade to Firestore:', error);
   }
 };
 
+const saveChatMessageToFirestore = async (payload, messages) => {
+  try {
+    const docRef = db.collection('tradeMessages').doc(payload.trade_hash);
+    await docRef.set({
+      trade_hash: payload.trade_hash,
+      messages: admin.firestore.FieldValue.arrayUnion(...messages),
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore.`);
+  } catch (error) {
+    console.error('Error saving chat messages to Firestore:', error);
+  }
+};
+
 
 const handlers = {
+
+
   'trade.started': async (payload, tradesHandler, paxfulApi) => {
     console.log('Handler trade.started called with payload:', payload); // Logging
     await tradesHandler.markAsStarted(payload.trade_hash);
@@ -129,8 +145,10 @@ const handlers = {
       }
     }
     broadcast({ event: 'trade.chat_message_received', data: payload });
-    await saveTradeToFirestore(payload, 'tradeMessages');
+    await saveChatMessageToFirestore(payload, messages);
   },
+
+  
 
   'trade.paid': async (payload, tradesHandler) => {
     console.log('Handler trade.paid called with payload:', payload); // Logging
