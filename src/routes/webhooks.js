@@ -96,7 +96,7 @@ const handlers = {
     const response = await paxfulApi.invoke('/paxful/v1/trade/get', { trade_hash: payload.trade_hash });
     console.log(response);
     console.log('Trade started Invocation');
-    broadcast({ event: 'trade.started', data: payload });
+    //broadcast({ event: 'trade.started', data: payload });
     await saveTradeToFirestore(payload, 'trades');
   },
 
@@ -156,7 +156,7 @@ const handlers = {
     if (await tradesHandler.isFiatPaymentReceivedInFullAmount(tradeHash)) {
       await tradesHandler.markCompleted(tradeHash);
       broadcast({ event: 'trade.paid', data: payload });
-      await saveTradeToFirestore(payload, 'trades');
+     // await saveTradeToFirestore(payload, 'trades');
     }
   },
 };
