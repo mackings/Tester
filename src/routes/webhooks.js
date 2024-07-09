@@ -100,6 +100,8 @@ const handlers = {
     await saveTradeToFirestore(payload, 'trades');
   },
 
+  
+
   'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
     console.log('Handler trade.chat_message_received called with payload:', payload); // Logging
     const offerOwnerUsername = ctx.config.username;
