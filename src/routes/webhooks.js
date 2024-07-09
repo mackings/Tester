@@ -165,7 +165,7 @@ const handlers = {
 
 router.post('/paxful/send-message', async (req, res) => {
   const message = req.body.message;
-  const hash = request.body.hash;
+  const hash = req.body.hash;
   const paxfulApi = req.context.services.paxfulApi;
   try {
       await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
