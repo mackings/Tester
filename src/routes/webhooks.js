@@ -54,10 +54,10 @@ const tradesChatMessages = {}; // In-memory store for trade chat messages
 const tradeHashQueue = []; // Queue to store trade hashes in order of receipt
 
 // Broadcast a message to all connected WebSocket clients
-const broadcast = (message) => {
-  io.sockets.emit('message', message);
-  console.log('WebSocket sent data:', JSON.stringify(message)); // Log the data being sent
-};
+// const broadcast = (message) => {
+//   io.sockets.emit('message', message);
+//   console.log('WebSocket sent data:', JSON.stringify(message)); // Log the data being sent
+// };
 
 const saveTradeToFirestore = async (payload, collection) => {
   try {
@@ -144,7 +144,7 @@ const handlers = {
         return;
       }
     }
-    broadcast({ event: 'trade.chat_message_received', data: payload });
+   // broadcast({ event: 'trade.chat_message_received', data: payload });
     await saveChatMessageToFirestore(payload, messages);
   },
 
@@ -155,7 +155,7 @@ const handlers = {
     const tradeHash = payload.trade_hash;
     if (await tradesHandler.isFiatPaymentReceivedInFullAmount(tradeHash)) {
       await tradesHandler.markCompleted(tradeHash);
-      broadcast({ event: 'trade.paid', data: payload });
+     // broadcast({ event: 'trade.paid', data: payload });
      // await saveTradeToFirestore(payload, 'trades');
     }
   },
