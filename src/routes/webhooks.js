@@ -68,7 +68,7 @@ const saveTradeToFirestore = async (payload, collection) => {
     });
     console.log(`Trade ${payload.trade_hash} saved to Firestore.`);
   } catch (error) {
-    console.error('Error saving trade to Firestore:', error);
+    console.error('Error saving  the trade to Firestore:', error);
   }
 };
 
