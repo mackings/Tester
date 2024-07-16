@@ -66,7 +66,7 @@ const saveTradeToFirestore = async (payload, collection) => {
       ...payload,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log(`Trade ${payload.trade_hash} saved to Firestore.`);
+    console.log(`Trade ${payload.trade_hash} saved to Firestore >>>>>>.`);
   } catch (error) {
     console.error('Error saving  the trade to Firestore:', error);
   }
@@ -80,7 +80,7 @@ const saveChatMessageToFirestore = async (payload, messages) => {
       messages: admin.firestore.FieldValue.arrayUnion(...messages),
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
-    console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore.`);
+    console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore  >>>>>`);
   } catch (error) {
     console.error('Error saving chat messages to Firestore:', error);
   }
@@ -139,7 +139,7 @@ const handlers = {
     // Process bank account instruction messages differently
     if (lastNonSystemMessage.type === 'bank-account-instruction') {
       const bankAccountDetails = lastNonSystemMessage.text.bank_account;
-      console.log('Received bank account details:', bankAccountDetails);
+     // console.log('Received bank account details:', bankAccountDetails);
     } else {
       const isLastMessageByBuyer = lastNonSystemMessage.author !== offerOwnerUsername;
       if (!isLastMessageByBuyer) {
