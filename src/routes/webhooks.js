@@ -72,19 +72,61 @@ const saveTradeToFirestore = async (payload, collection) => {
   }
 };
 
+// const saveChatMessageToFirestore = async (payload, messages) => {
+//   try {
+//     const docRef = db.collection('tradeMessages').doc(payload.trade_hash);
+//     const messagesToSave = messages.map(message => {
+//       // Ensure each message is structured correctly for Firestore
+//       return {
+//         ...message,
+//         timestamp: admin.firestore.FieldValue.serverTimestamp(),
+//       };
+//     });
+//     await docRef.set({
+//       trade_hash: payload.trade_hash,
+//       messages: admin.firestore.FieldValue.arrayUnion(...messagesToSave),
+//     }, { merge: true });
+//     console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore >>>>>`);
+//   } catch (error) {
+//     console.error('Error saving chat messages to Firestore:', error);
+//   }
+// };
+
 const saveChatMessageToFirestore = async (payload, messages) => {
   try {
     const docRef = db.collection('tradeMessages').doc(payload.trade_hash);
-    await docRef.set({
-      trade_hash: payload.trade_hash,
-      messages: admin.firestore.FieldValue.arrayUnion(...messages),
+    
+    // Ensure each message is structured correctly for Firestore
+    const formattedMessages = messages.map(message => ({
+      ...message,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-    console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore  >>>>>`);
+    }));
+
+    // Check if there is a bank-account message to include
+    const bankAccountMessage = formattedMessages.find(msg => msg.type === 'bank-account');
+
+    if (bankAccountMessage) {
+      // Save bank-account details directly within the messages array
+      await docRef.set({
+        trade_hash: payload.trade_hash,
+        messages: admin.firestore.FieldValue.arrayUnion(...formattedMessages),
+        bank_account: bankAccountMessage.text.bank_account, // Optionally save bank account separately
+      }, { merge: true });
+      console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore`);
+    } else {
+      // If no bank-account message found, save all messages normally
+      await docRef.set({
+        trade_hash: payload.trade_hash,
+        messages: admin.firestore.FieldValue.arrayUnion(...formattedMessages),
+      }, { merge: true });
+      console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore`);
+    }
   } catch (error) {
     console.error('Error saving chat messages to Firestore:', error);
   }
 };
+
+
 
 
 const handlers = {
@@ -94,61 +136,71 @@ const handlers = {
     console.log('Handler trade.started called with payload:', payload); // Logging
     await tradesHandler.markAsStarted(payload.trade_hash);
     const response = await paxfulApi.invoke('/paxful/v1/trade/get', { trade_hash: payload.trade_hash });
-    console.log(response);
-    console.log('Trade started Invocation');
-    //broadcast({ event: 'trade.started', data: payload });
+    console.log(` Trade Invocation.... ${response}`);
     await saveTradeToFirestore(payload, 'trades');
+    const message = "Hello.."
+  
+    try {
+        await paxfulApi.invoke('/paxful/v1/trade-chat/post', {
+            trade_hash: payload.tradeHash,
+            message
+        });
+        res.json({ status: 'success', message: 'Message sent successfully.' });
+    } catch (error) {
+        console.error('Error sending chat message:', error);
+        res.status(500).json({ status: 'error', message: 'Failed to send message.' });
+    }
   },
 
   
 
-  'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
-    console.log('Handler trade.chat_message_received called with payload:', payload); // Logging
-    const offerOwnerUsername = ctx.config.username;
-    const maxRetries = 5;
-    let retries = 0;
-    let messages;
+'trade.chat_message_received': async (payload, _, paxfulApi, ctx) => {
+  console.log('Handler trade.chat_message_received called with payload:', payload);
+  const offerOwnerUsername = ctx.config.username;
+  const maxRetries = 5;
+  let retries = 0;
+  let messages;
 
-    while (retries < maxRetries) {
-      try {
-        const response = await paxfulApi.invoke('/paxful/v1/trade-chat/get', { trade_hash: payload.trade_hash });
-        if (response && response.data && response.data.messages) {
-          messages = response.data.messages;
-          break;
-        }
-        retries++;
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 1 second before retrying
-      } catch (error) {
-        console.error('Error fetching trade chat messages:', error);
-        throw error;
+  while (retries < maxRetries) {
+    try {
+      const response = await paxfulApi.invoke('/paxful/v1/trade-chat/get', { trade_hash: payload.trade_hash });
+      if (response && response.data && response.data.messages) {
+        messages = response.data.messages;
+        break;
       }
+      retries++;
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 1 second before retrying
+    } catch (error) {
+      console.error('Error fetching trade chat messages:', error);
+      throw error;
     }
+  }
 
-    if (!messages) {
-      console.warn('Messages are not available after multiple retries.');
+  if (!messages) {
+    console.warn('Messages are not available after multiple retries.');
+    return;
+  }
+
+  const nonSystemMessages = messages.filter((m) => m.type === 'msg' || m.type === 'bank-account-instruction').reverse();
+  const lastNonSystemMessage = nonSystemMessages[0];
+
+  if (lastNonSystemMessage && lastNonSystemMessage.type === 'bank-account-instruction') {
+    const bankAccountDetails = lastNonSystemMessage.text.bank_account;
+    // console.log('Received bank account details:', bankAccountDetails);
+  } else if (lastNonSystemMessage) {
+    const isLastMessageByBuyer = lastNonSystemMessage.author !== offerOwnerUsername;
+    if (!isLastMessageByBuyer) {
       return;
     }
+  } else {
+    // Handle case where lastNonSystemMessage is undefined or empty
+    console.warn('No valid non-system messages found.');
+    return;
+  }
 
-    // Store messages in the in-memory store
-    tradesChatMessages[payload.trade_hash] = messages;
-    tradeHashQueue.push(payload.trade_hash); // Add trade hash to the queue
+  await saveChatMessageToFirestore(payload, messages);
+},
 
-    const nonSystemMessages = messages.filter((m) => m.type === 'msg' || m.type === 'bank-account-instruction').reverse();
-    const lastNonSystemMessage = nonSystemMessages[0];
-
-    // Process bank account instruction messages differently
-    if (lastNonSystemMessage.type === 'bank-account-instruction') {
-      const bankAccountDetails = lastNonSystemMessage.text.bank_account;
-     // console.log('Received bank account details:', bankAccountDetails);
-    } else {
-      const isLastMessageByBuyer = lastNonSystemMessage.author !== offerOwnerUsername;
-      if (!isLastMessageByBuyer) {
-        return;
-      }
-    }
-   // broadcast({ event: 'trade.chat_message_received', data: payload });
-    await saveChatMessageToFirestore(payload, messages);
-  },
 
 
 
