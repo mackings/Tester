@@ -225,10 +225,10 @@ router.post('/paxful/pay', async (req, res) => {
   const hash = req.body.hash;
   const paxfulApi = req.context.services.paxfulApi;
   try {
-      await paxfulApi.invoke('/paxful/v1/trade/paid', {
+   const done = await paxfulApi.invoke('/paxful/v1/trade/paid', {
           trade_hash: hash,
       });
-      res.json({ status: 'success', message: 'Message sent successfully.' });
+      res.json({ status: 'success', message: 'Message sent successfully.','Done?':done });
   } catch (error) {
       console.error('Error sending chat message:', error);
       res.status(500).json({ status: 'error', message: 'Failed to send message.','error':error });
