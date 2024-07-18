@@ -73,65 +73,67 @@ const saveTradeToFirestore = async (payload, collection) => {
 };
 
 
-// const saveChatMessageToFirestore = async (payload, messages) => {
-//   try {
-//     const docRef = db.collection('tradeMessages').doc(payload.trade_hash);
-//     const messagesToSave = messages.map(message => {
-//       // Ensure each message is structured correctly for Firestore
-//       return {
-//         ...message,
-//         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-//       };
-//     });
-//     await docRef.set({
-//       trade_hash: payload.trade_hash,
-//       messages: admin.firestore.FieldValue.arrayUnion(...messagesToSave),
-//     }, { merge: true });
-//     console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore >>>>>`);
-//   } catch (error) {
-//     console.error('Error saving chat messages to Firestore:', error);
-//   }
-// };
-
 
 
 const saveChatMessageToFirestore = async (payload, messages) => {
   try {
     const docRef = db.collection('tradeMessages').doc(payload.trade_hash);
-    
-    // Ensure each message is structured correctly for Firestore
-    const formattedMessages = messages.map(message => ({
-      ...message,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    }));
-
-    // Check if there is a bank-account message to include
-    const bankAccountMessage = formattedMessages.find(msg => msg.type === 'bank-account');
-
-    if (bankAccountMessage) {
-      // Extract bank account details and prepare messages without bank account
-      const { bank_account, ...messagesWithoutBankAccount } = bankAccountMessage.text;
-      
-      // Save to Firestore
-      await docRef.set({
-        trade_hash: payload.trade_hash,
-        messages: formattedMessages.filter(msg => msg !== bankAccountMessage),
-        bank_account: bank_account,
-        ...messagesWithoutBankAccount,
-      }, { merge: true });
-      console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore`);
-    } else {
-      // If no bank-account message found, save all messages normally
-      await docRef.set({
-        trade_hash: payload.trade_hash,
-        messages: formattedMessages,
-      }, { merge: true });
-      console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore`);
-    }
+    const messagesToSave = messages.map(message => {
+      // Ensure each message is structured correctly for Firestore
+      return {
+        ...message,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      };
+    });
+    await docRef.set({
+      trade_hash: payload.trade_hash,
+      messages: admin.firestore.FieldValue.arrayUnion(...messagesToSave),
+    }, { merge: true });
+    console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore >>>>>`);
   } catch (error) {
     console.error('Error saving chat messages to Firestore:', error);
   }
 };
+
+
+
+// const saveChatMessageToFirestore = async (payload, messages) => {
+//   try {
+//     const docRef = db.collection('tradeMessages').doc(payload.trade_hash);
+    
+//     // Ensure each message is structured correctly for Firestore
+//     const formattedMessages = messages.map(message => ({
+//       ...message,
+//       timestamp: admin.firestore.FieldValue.serverTimestamp(),
+//     }));
+
+//     // Check if there is a bank-account message to include
+//     const bankAccountMessage = formattedMessages.find(msg => msg.type === 'bank-account');
+
+//     if (bankAccountMessage) {
+//       // Extract bank account details and prepare messages without bank account
+//       const { bank_account, ...messagesWithoutBankAccount } = bankAccountMessage.text;
+      
+//       // Save to Firestore
+//       await docRef.set({
+//         trade_hash: payload.trade_hash,
+//         messages: formattedMessages.filter(msg => msg !== bankAccountMessage),
+//         bank_account: bank_account,
+//         ...messagesWithoutBankAccount,
+//       }, { merge: true });
+//       console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore`);
+//     } else {
+//       // If no bank-account message found, save all messages normally
+//       await docRef.set({
+//         trade_hash: payload.trade_hash,
+//         messages: formattedMessages,
+//       }, { merge: true });
+//       console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore`);
+//     }
+//   } catch (error) {
+//     console.error('Error saving chat messages to Firestore:', error);
+//   }
+// };
 
 
 
@@ -154,10 +156,11 @@ const handlers = {
             trade_hash: payload.tradeHash,
             message
         });
-        res.json({ status: 'success', message: 'Message sent successfully.' });
+        console.log("Message Sent");
+       // res.json({ status: 'success', message: 'Message sent successfully.' });
     } catch (error) {
         console.error('Error sending chat message:', error);
-        res.status(500).json({ status: 'error', message: 'Failed to send message.' });
+       // res.status(500).json({ status: 'error', message: 'Failed to send message.' });
     }
   },
 
