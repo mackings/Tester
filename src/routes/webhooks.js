@@ -98,18 +98,12 @@ const saveTradeToFirestore = async (payload, collection) => {
 const saveChatMessageToFirestore = async (payload, messages) => {
   try {
     const docRef = db.collection('tradeMessages').doc(payload.trade_hash);
-    const messagesToSave = messages.map(message => {
-      // Ensure each message is structured correctly for Firestore
-      return {
-        ...message,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      };
-    });
     await docRef.set({
       trade_hash: payload.trade_hash,
-      messages: admin.firestore.FieldValue.arrayUnion(...messagesToSave),
+      messages: admin.firestore.FieldValue.arrayUnion(...messages),
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
-    console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore >>>>>`);
+    console.log(`Chat messages for trade ${payload.trade_hash} saved to Firestore.`);
   } catch (error) {
     console.error('Error saving chat messages to Firestore:', error);
   }
