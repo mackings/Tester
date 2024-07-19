@@ -176,7 +176,7 @@ const handlers = {
     ).reverse();
     
     const lastNonSystemMessage = nonSystemMessages[0];
-    // Process bank account instruction or bank account messages differently
+    // Process bank account instruction or bank account messages differently..
     if (lastNonSystemMessage.type === 'bank-account-instruction' || lastNonSystemMessage.type === 'bank-account') {
       const bankAccountDetails = lastNonSystemMessage.text.bank_account;
       console.log('Received bank account details:', bankAccountDetails);
