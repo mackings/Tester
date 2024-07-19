@@ -167,11 +167,17 @@ const handlers = {
     }
     // Store messages in the in-memory store
     tradesChatMessages[payload.trade_hash] = messages;
-    tradeHashQueue.push(payload.trade_hash); // Add trade hash to the queue
-    const nonSystemMessages = messages.filter((m) => m.type === 'msg' || m.type === 'bank-account-instruction').reverse();
+    tradeHashQueue.push(payload.trade_hash);
+     // Add trade hash to the queue
+     const nonSystemMessages = messages.filter((m) => 
+      m.type === 'msg' || 
+      m.type === 'bank-account-instruction' || 
+      m.type === 'bank-account'
+    ).reverse();
+    
     const lastNonSystemMessage = nonSystemMessages[0];
-    // Process bank account instruction messages differently
-    if (lastNonSystemMessage.type === 'bank-account-instruction') {
+    // Process bank account instruction or bank account messages differently
+    if (lastNonSystemMessage.type === 'bank-account-instruction' || lastNonSystemMessage.type === 'bank-account') {
       const bankAccountDetails = lastNonSystemMessage.text.bank_account;
       console.log('Received bank account details:', bankAccountDetails);
     } else {
@@ -180,6 +186,7 @@ const handlers = {
         return;
       }
     }
+    
    // broadcast({ event: 'trade.chat_message_received', data: payload });
     await saveChatMessageToFirestore(payload, messages);
   },
