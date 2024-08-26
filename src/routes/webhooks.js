@@ -290,7 +290,7 @@ router.post('/paxful/rates', async (req, res) => {
   const hash = req.body.hash;
   const paxfulApi = req.context.services.paxfulApi;
   try {
-   const theres = await paxfulApi.invoke('/paxful/v1/currency/rates', {});
+   const theres = await paxfulApi.invoke('/paxful/v1/currency/btc?response=text', {});
 
       res.json({ status: 'success', message: 'Message sent successfully.','Done?':theres });
       console.log(theres);
