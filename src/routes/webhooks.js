@@ -283,6 +283,24 @@ router.post('/paxful/pay', async (req, res) => {
 });
 
 
+//rates
+
+router.post('/paxful/rates', async (req, res) => {
+
+  const hash = req.body.hash;
+  const paxfulApi = req.context.services.paxfulApi;
+  try {
+   const theres = await paxfulApi.invoke('/paxful/v1/currency/rates', {});
+
+      res.json({ status: 'success', message: 'Message sent successfully.','Done?':theres });
+      console.log(theres);
+  } catch (error) {
+      console.error('Error sending chat message:', error);
+      res.status(500).json({ status: 'error', message: 'Failed to send message.','error':error });
+  }
+});
+
+
 
 const validateFiatPaymentConfirmationRequestSignature = async (req) => {
   // TODO: Implement request signature validation to verify the request authenticity.
